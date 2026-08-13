@@ -216,3 +216,22 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Bun-specific files
+bun.lockb
+bun
+# Node.js and dependency-related files
+node_modules/
+*.log
+*.tmp
+# Build artifacts
+dist/
+out/
+*.js.map
+# IDE and editor settings
+vscode/
+idea/
+DS_Store
+# Cache and temporary files
+cache/
+parcel-cache/
