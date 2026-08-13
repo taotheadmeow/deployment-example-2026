@@ -1,0 +1,174 @@
+-django_env: &django_env
+  DEBUG: false
+  ALLOWED_HOST: ${ALLOWED_HOST}
+  CORS_ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
+  CSRF_TRUSTED_ORIGINS: ${ALLOWED_ORIGINS}
+  DB_HOST: db
+  DB_NAME: ${DB_NAME}
+  DB_PASSWORD: ${DB_PASSWORD}
+  DB_USER: ${DB_USER}
+  ENABLE_SWAGGER: true
+  SECRET_KEY: ${SECRET_KEY}
+  STORAGE: local
+  #S3_STORAGE_BUCKET_NAME: ${S3_STORAGE_BUCKET_NAME} #S3 is not use rightnow
+  #S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID}
+  #S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY}
+  #S3_ENDPOINT_URL: ${S3_ENDPOINT_URL}
+  REDIS_HOST: redis
+services:
+  db:
+    image: postgres:15.2-alpine
+    container_name: postgres_db
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    ports:
+      - "54329:5432" #reduce default port attack
+    volumes:
+      - db-data:/var/lib/postgresql/data
+  backend:
+    build:
+      context: backend
+    image: taotheadmeow/example-django:latest
+    container_name: example_django
+    pull_policy: never
+    healthcheck:
+      test: curl http://localhost:8080/admin #use basic default url for django just for example prod may depends
+      interval: 5m
+      timeout: 30s
+      retries: 5
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "4"
+    expose:
+      - 8000
+    volumes:
+      - django-static:/home/proj/static
+      - ./logs:/home/proj/logs
+      - ./media:/home/proj/media
+    depends_on:
+      - db
+      - redis
+  celery:
+    image: taotheadmeow/example-django:latest
+    container_name: example_celery
+    pull_policy: never
+    environment:
+      <<: *django_env
+    healthcheck:
+      test: celery -A ExampleDjango inspect ping -d celery@$HOSTNAME
+      interval: 5m
+      timeout: 30s
+      retries: 5
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "4"
+    command:
+      [
+        "python",
+        "-m",
+        "celery",
+        "-A",
+        "ExampleDjango",
+        "worker",
+        "-l",
+        "error" #info too muchhhh maybe miss important error
+      ]
+    depends_on:
+      - db
+      - redis
+
+  celery-beat:
+    image: taotheadmeow/example-django:latest
+    container_name: example_celery_beat
+    environment:
+      <<: *django_env
+    pull_policy: never
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "4"
+    depends_on:
+      - db
+      - redis
+    command:
+      [
+        "python",
+        "-m",
+        "celery",
+        "-A",
+        "ExampleDjango",
+        "beat",
+        "-l",
+        "error", #info too muchhhh maybe miss important error
+        "--scheduler",
+        "django_celery_beat.schedulers:DatabaseScheduler"
+      ]
+    
+  redis:
+    restart: unless-stopped
+    container_name: example_redis
+    image: "registry.redict.io/redict:7.3-alpine"
+    expose:
+      - 6379
+      - redis
+  nginx:
+    restart: unless-stopped
+    image: nginx:stable-alpine
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "7"
+    ports:
+      - "8080:80" # in case of using tunnel like Cloudflare Tunnel or frp or testing
+      #- "443:443"
+      #- "80:80"
+    container_name: visitor_kiosk_nginx_server-rev2
+    depends_on:
+      - backend
+      - frontend
+    volumes:
+      - django-static:/app/django/static:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+  frontend:
+    #assuming using server side render
+    build:
+      context: frontend
+    image: taotheadmeow/example-react:latest
+    container_name: example_react
+    pull_policy: never
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      API_URL: "http://backend:8000"
+    command: ["bun", "run", "start"]
+    expose:
+      - "3000"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "bun -e \"fetch('http://127.0.0.1:3000/').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))\""
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 15s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "4"
+volumes:
+  db-data:
+  django-static:
