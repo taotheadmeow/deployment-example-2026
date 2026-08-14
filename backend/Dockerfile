@@ -1,4 +1,4 @@
-FROM python:3.14-slim-bookworm AS base
+FROM python:3.12-slim-bookworm
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 RUN adduser proj
