@@ -25,7 +25,7 @@ SECRET_KEY = os.environ.get('SECRET_KEY', None)
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DEBUG', 'false').lower() in ['true', '1']
 
-ALLOWED_HOSTS = [os.environ.get('ALLOWED_HOSTS', 'localhost').split(',')]
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost').split(',')
 
 
 # Application definition
@@ -134,3 +134,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
 STATIC_ROOT = os.path.join(BASE_DIR, 'static')
+
+
+CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://localhost:6379/0')
+CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', 'redis://localhost:6379/1')

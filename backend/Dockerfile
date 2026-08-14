@@ -13,7 +13,10 @@ COPY . .
 RUN ["chown", "-R", "proj:proj", "/home/proj"]
 RUN ["mkdir", "/home/proj/static"]
 RUN ["chown", "-R", "proj:proj", "/home/proj/static"]
+
 USER proj
 #RUN python manage.py compilemessages
-ENTRYPOINT /home/proj/entrypoint.sh
-CMD ["python", "-m", "uvicorn", "ExampleDjango.asgi:application", "--host", "0.0.0.0", "--port", "8000"]
+RUN ["chmod", "+x", "/home/proj/entrypoint.sh"]
+RUN ["chmod", "+x", "/home/proj/start.sh"]
+#ENTRYPOINT /home/proj/entrypoint.sh
+CMD ./start.sh
