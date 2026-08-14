@@ -4,12 +4,16 @@ ENV PYTHONUNBUFFERED=1
 RUN adduser proj
 WORKDIR /home/proj
 RUN apt-get update
-RUN apt-get install gettext pkg-config build-essential python3-dev default-libmysqlclient-dev curl -y --no-install-recommends 
-COPY ./requirements.txt /home/proj/
+RUN apt-get install gettext pkg-config build-essential python3-dev curl -y --no-install-recommends
+COPY ./requirements.txt .
 RUN pip install -r requirements.txt
+COPY ./entrypoint.sh .
 #RUN touch /home/proj/logs/django.log
-COPY --chown=proj:proj . .
+COPY . .
+RUN ["chown", "-R", "proj:proj", "/home/proj"]
+RUN ["mkdir", "/home/proj/static"]
+RUN ["chown", "-R", "proj:proj", "/home/proj/static"]
 USER proj
-RUN python manage.py compilemessages
-ENTRYPOINT [ "/app/entrypoint.sh" ]
-CMD ["python", "-m", "uvicorn"]
+#RUN python manage.py compilemessages
+ENTRYPOINT /home/proj/entrypoint.sh
+CMD ["python", "-m", "uvicorn", "ExampleDjango.asgi:application", "--host", "0.0.0.0", "--port", "8000"]
