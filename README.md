@@ -23,3 +23,5 @@ docker exec -it example_django python manage.py createsuperuser
 ```
 
 _Note: this project is tested on x86_64 architecture and modern version of Docker (>=A.D. 2025)._
+
+![Diagram](sampleSysDesign.png)
