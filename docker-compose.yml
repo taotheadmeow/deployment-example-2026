@@ -1,6 +1,6 @@
 x-django_env: &django_env
   DEBUG: false
-  ALLOWED_HOST: ${ALLOWED_HOST}
+  ALLOWED_HOSTS: ${ALLOWED_HOSTS}
   CORS_ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
   CSRF_TRUSTED_ORIGINS: ${ALLOWED_ORIGINS}
   DB_HOST: db
@@ -19,7 +19,7 @@ services:
   db:
     image: postgres:15.2-alpine
     container_name: postgres_db
-    restart: always
+    restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
       interval: 5s
@@ -36,11 +36,14 @@ services:
   backend:
     build:
       context: backend
+    restart: unless-stopped
     image: taotheadmeow/example-django:latest
     container_name: example_django
+    environment:
+      <<: *django_env
     pull_policy: never
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://127.0.0.1:8000/admin/ || exit 1"]
+      test: ["CMD", "curl -f http://127.0.0.1:8000/health/ || exit 1"]
       interval: 5m
       timeout: 30s
       retries: 5
@@ -65,14 +68,10 @@ services:
     image: taotheadmeow/example-django:latest
     container_name: example_celery
     pull_policy: never
+    restart: unless-stopped
     environment:
       <<: *django_env
-    healthcheck:
-      test: celery -A ExampleDjango inspect ping -d celery@$HOSTNAME
-      interval: 5m
-      timeout: 30s
-      retries: 5
-      start_period: 30s
+
     logging:
       driver: "json-file"
       options:
@@ -97,6 +96,7 @@ services:
   celery-beat:
     image: taotheadmeow/example-django:latest
     container_name: example_celery_beat
+    restart: unless-stopped
     environment:
       <<: *django_env
     pull_policy: never
@@ -105,9 +105,6 @@ services:
       options:
         max-size: "10m"
         max-file: "4"
-    depends_on:
-      - db
-      - redis
     command:
       [
         "python",
@@ -130,9 +127,14 @@ services:
     restart: unless-stopped
     container_name: example_redis
     image: "registry.redict.io/redict:7.3-alpine"
+    healthcheck:
+      test: ["CMD", "redict-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
     expose:
       - 6379
-      - redis
   nginx:
     restart: unless-stopped
     image: nginx:stable-alpine
@@ -145,7 +147,7 @@ services:
       - "8080:80" # in case of using tunnel like Cloudflare Tunnel or frp or testing
       #- "443:443"
       #- "80:80"
-    container_name: visitor_kiosk_nginx_server-rev2
+    container_name: example_nginx
     depends_on:
       - backend
       - frontend
