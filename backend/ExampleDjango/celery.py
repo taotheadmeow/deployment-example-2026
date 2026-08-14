@@ -2,9 +2,10 @@ import os
 
 from celery import Celery
 
+
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "DjangoExample.settings")
 
-app = Celery("myproject")
+app = Celery("DjangoExample")
 
 app.config_from_object(
     "django.conf:settings",

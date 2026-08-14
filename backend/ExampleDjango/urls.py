@@ -17,6 +17,10 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path
 
+def health(request):
+    return HttpResponse("ok", content_type="text/plain")
+
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path("health", health, name="health"),
 ]
