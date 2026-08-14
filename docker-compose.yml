@@ -1,5 +1,5 @@
 x-django_env: &django_env
-  DEBUG: false
+  DEBUG: true
   ALLOWED_HOSTS: ${ALLOWED_HOSTS}
   CORS_ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
   CSRF_TRUSTED_ORIGINS: ${ALLOWED_ORIGINS}
@@ -10,6 +10,8 @@ x-django_env: &django_env
   ENABLE_SWAGGER: true
   SECRET_KEY: ${SECRET_KEY}
   STORAGE: local
+  CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://redis:6379/0}
+  CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/1}
   #S3_STORAGE_BUCKET_NAME: ${S3_STORAGE_BUCKET_NAME} #S3 is not use rightnow
   #S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID}
   #S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY}
@@ -71,7 +73,6 @@ services:
     restart: unless-stopped
     environment:
       <<: *django_env
-
     logging:
       driver: "json-file"
       options:
@@ -79,14 +80,9 @@ services:
         max-file: "4"
     command:
       [
-        "python",
-        "-m",
-        "celery",
-        "-A",
-        "ExampleDjango",
-        "worker",
-        "-l",
-        "error" #info too muchhhh maybe miss important error
+        "sh",
+        "-c",
+        "./entrypoint.sh && python -m celery -A ExampleDjango worker -l  error" #info too muchhhh maybe miss important error
       ]
     depends_on:
       db:
@@ -107,16 +103,9 @@ services:
         max-file: "4"
     command:
       [
-        "python",
-        "-m",
-        "celery",
-        "-A",
-        "ExampleDjango",
-        "beat",
-        "-l",
-        "error", #info too muchhhh maybe miss important error
-        "--scheduler",
-        "django_celery_beat.schedulers:DatabaseScheduler"
+        "sh",
+        "-c",
+        "./entrypoint.sh && python -m celery -A ExampleDjango beat -l error --scheduler django_celery_beat.schedulers:DatabaseScheduler"
       ]
     depends_on:
       db:
